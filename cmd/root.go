@@ -10,13 +10,15 @@ import (
 )
 
 var (
-	debug bool
+	Version = "dev"
+	debug   bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "dbibackend [titles_dir]",
-	Short: "Install local titles into Nintendo Switch via USB",
-	Args:  cobra.ExactArgs(1),
+	Use:     "dbibackend [titles_dir]",
+	Short:   "Install local titles into Nintendo Switch via USB",
+	Version: Version,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		titlesDir := args[0]
 
@@ -46,9 +48,15 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func Execute() {
+func init() {
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 	rootCmd.Flags().BoolVar(&debug, "debug", false, "enable debug output")
+}
+
+func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

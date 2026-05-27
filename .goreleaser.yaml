@@ -1,36 +1,58 @@
 version: 2
 
+project_name: dbibackend
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
 builds:
-  - main: .
+  - main: ./cmd/dbibackend
     binary: dbibackend
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/kyungw00k/dbibackend/cmd.Version={{.Version}}
     goos:
-      - darwin
       - linux
+      - darwin
       - windows
     goarch:
       - amd64
       - arm64
-    env:
-      - CGO_ENABLED=0
 
 archives:
   - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
 
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
 brews:
-  - name: dbibackend
-    repository:
+  - repository:
       owner: kyungw00k
-      name: homebrew-tap
-    directory: Formula
-    homepage: https://github.com/kyungw00k/dbibackend
+      name: homebrew-cli
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/kyungw00k/dbibackend"
     description: "Install local titles into Nintendo Switch via USB"
+    license: "MIT"
+    install: |
+      bin.install "dbibackend"
     test: |
-      system "#{bin}/dbibackend --help"
+      assert_match "dbibackend version", shell_output("#{bin}/dbibackend --version")
 
 release:
   github:
     owner: kyungw00k
     name: dbibackend
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"

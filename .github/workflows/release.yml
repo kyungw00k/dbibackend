@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: go-semantic-release/action@v1
+        id: semrel
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          hooks: goreleaser
+          changelog-file: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Summary
+        if: steps.semrel.outputs.version != ''
+        run: |
+          echo "### Released v${{ steps.semrel.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: v${{ steps.semrel.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.semrel.outputs.version }})" >> $GITHUB_STEP_SUMMARY

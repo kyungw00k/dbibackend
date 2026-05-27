@@ -24,7 +24,7 @@ Nintendo Switch:
 ### Homebrew (macOS)
 
 ```bash
-brew install kyungw00k/tap/dbibackend
+brew install kyungw00k/cli/dbibackend
 ```
 
 ### Download

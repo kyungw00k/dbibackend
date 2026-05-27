@@ -1,0 +1,21 @@
+# Binaries
+/dbibackend
+/dist/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Build
+*.exe
+*.tar.gz
+*.zip
