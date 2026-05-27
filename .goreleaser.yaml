@@ -1,0 +1,36 @@
+version: 2
+
+builds:
+  - main: .
+    binary: dbibackend
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+brews:
+  - name: dbibackend
+    repository:
+      owner: kyungw00k
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/kyungw00k/dbibackend
+    description: "Install local titles into Nintendo Switch via USB"
+    test: |
+      system "#{bin}/dbibackend --help"
+
+release:
+  github:
+    owner: kyungw00k
+    name: dbibackend

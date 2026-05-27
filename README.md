@@ -1,21 +1,52 @@
-DBI backend
-===========
+# dbibackend
 
-PC-side server for games installation into Nintendo Switch
+PC-side server for installing games into Nintendo Switch via USB (DBI0 protocol).
 
-Requirements
-------------
+Fork of [lunixoid/dbibackend](https://github.com/lunixoid/dbibackend), rewritten in Go.
+
+## Features
+
+- Single binary — no Python or runtime dependencies
+- Cross-platform: macOS, Linux, Windows
+- NFC-normalized filenames (fixes Korean/Unicode display on Switch)
+- GoReleaser + Homebrew tap distribution
+
+## Requirements
+
 Host:
-
-- libusb
-- pyusb
-- python3.7+
+- [libusb](https://libusb.info/)
 
 Nintendo Switch:
-- DBI v202+
+- [DBI](https://github.com/rashevskyv/dbi) v202+
 
-Usage
------
-* Run server `python3 dbibackend.py tites_dir_path`
-* Run DBI and then Installation titles from USB
-* Install files
+## Install
+
+### Homebrew (macOS)
+
+```bash
+brew install kyungw00k/tap/dbibackend
+```
+
+### Download
+
+Download the latest binary from [Releases](https://github.com/kyungw00k/dbibackend/releases).
+
+## Usage
+
+```bash
+dbibackend <titles_dir> [--debug]
+```
+
+1. Run `dbibackend` with the path to your NSP/NSZ/XCI files
+2. On Switch, open DBI → Install title from USB
+3. Select and install titles
+
+## Build from source
+
+```bash
+go build -o dbibackend .
+```
+
+## License
+
+MIT
