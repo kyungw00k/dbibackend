@@ -6,9 +6,12 @@ Fork of [lunixoid/dbibackend](https://github.com/lunixoid/dbibackend), rewritten
 
 ## Features
 
-- Single binary — no Python or runtime dependencies
+- System tray menu bar app (default) with start/stop control
+- CLI mode for headless usage (`--cli`)
+- Multiple directory support — scan all your title folders at once
 - Cross-platform: macOS, Linux, Windows
 - NFC-normalized filenames (fixes Korean/Unicode display on Switch)
+- Single binary — no Python or runtime dependencies
 - GoReleaser + Homebrew tap distribution
 
 ## Requirements
@@ -33,18 +36,32 @@ Download the latest binary from [Releases](https://github.com/kyungw00k/dbibacke
 
 ## Usage
 
+### Menu bar mode (default)
+
 ```bash
-dbibackend <titles_dir> [--debug]
+dbibackend [--debug]
 ```
 
-1. Run `dbibackend` with the path to your NSP/NSZ/XCI files
-2. On Switch, open DBI → Install title from USB
-3. Select and install titles
+The app lives in your system tray. Click the DBI icon to:
+
+1. **Start** — begin waiting for a Switch USB connection
+2. **Add Directory** — add folders containing NSP/NSZ/XCI files
+3. **Stop** — disconnect and stop the server
+4. On Switch, open DBI → Install title from USB
+5. Select and install titles from all configured directories
+
+![Screenshot](docs/screenshot.png)
+
+### CLI mode
+
+```bash
+dbibackend --cli <titles_dir> [--debug]
+```
 
 ## Build from source
 
 ```bash
-go build -o dbibackend .
+go build -o dbibackend ./cmd/dbibackend
 ```
 
 ## License

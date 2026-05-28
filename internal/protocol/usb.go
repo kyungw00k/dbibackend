@@ -20,7 +20,13 @@ type USBContext struct {
 	in    *gousb.InEndpoint
 }
 
-func ConnectUSB() (*USBContext, error) {
+func ConnectUSB() (usb *USBContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("usb init failed: %v", r)
+		}
+	}()
+
 	ctx := gousb.NewContext()
 
 	dev, err := ctx.OpenDeviceWithVIDPID(SwitchVID, SwitchPID)
@@ -31,12 +37,6 @@ func ConnectUSB() (*USBContext, error) {
 	if dev == nil {
 		ctx.Close()
 		return nil, fmt.Errorf("switch not found (VID:%04x PID:%04x)", SwitchVID, SwitchPID)
-	}
-
-	if err := dev.Reset(); err != nil {
-		dev.Close()
-		ctx.Close()
-		return nil, fmt.Errorf("device reset: %w", err)
 	}
 
 	cfgNum, err := dev.ActiveConfigNum()

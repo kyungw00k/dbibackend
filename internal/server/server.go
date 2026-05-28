@@ -27,6 +27,7 @@ func (r usbReader) Read(p []byte) (int, error) {
 type Server struct {
 	usb     *protocol.USBContext
 	workDir string
+	paths   []string
 	cache   map[string]string
 	logger  *slog.Logger
 }
@@ -35,6 +36,21 @@ func New(usb *protocol.USBContext, workDir string, logger *slog.Logger) *Server 
 	return &Server{
 		usb:     usb,
 		workDir: workDir,
+		paths:   []string{workDir},
+		cache:   make(map[string]string),
+		logger:  logger,
+	}
+}
+
+func NewMulti(usb *protocol.USBContext, paths []string, logger *slog.Logger) *Server {
+	dir := ""
+	if len(paths) > 0 {
+		dir = paths[0]
+	}
+	return &Server{
+		usb:     usb,
+		workDir: dir,
+		paths:   paths,
 		cache:   make(map[string]string),
 		logger:  logger,
 	}
@@ -99,17 +115,19 @@ func (s *Server) handleList() error {
 	extensions := map[string]bool{".nsp": true, ".nsz": true, ".xci": true}
 	var names []string
 
-	filepath.WalkDir(s.workDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	for _, dir := range s.paths {
+		filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if extensions[strings.ToLower(filepath.Ext(path))] {
+				displayName := norm.NFC.String(d.Name())
+				s.cache[displayName] = path
+				names = append(names, displayName)
+			}
 			return nil
-		}
-		if extensions[strings.ToLower(filepath.Ext(path))] {
-			displayName := norm.NFC.String(d.Name())
-			s.cache[displayName] = path
-			names = append(names, displayName)
-		}
-		return nil
-	})
+		})
+	}
 
 	listData := []byte(strings.Join(names, "\n") + "\n")
 	resp, _ := protocol.NewHeader(protocol.TypeResponse, protocol.CmdList, uint32(len(listData))).Marshal()
