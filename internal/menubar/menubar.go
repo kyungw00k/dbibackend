@@ -40,9 +40,9 @@ func (a *App) saveConfig() {
 }
 
 type App struct {
-	logger *slog.Logger
-	paths  []string
-	mu     sync.Mutex
+	logger  *slog.Logger
+	paths   []string
+	mu      sync.Mutex
 	running bool
 	started bool
 	stop    chan struct{}
@@ -53,8 +53,8 @@ type App struct {
 	mPaths     []*systray.MenuItem
 	mAddDir    *systray.MenuItem
 	mRemoveDir *systray.MenuItem
-	sepHidden  bool
 	mQuit      *systray.MenuItem
+	srv        *server.Server
 }
 
 func NewApp(initialDir string, logger *slog.Logger) *App {
@@ -120,16 +120,19 @@ func (a *App) rebuildDynamicMenu() {
 	}
 	a.mPaths = nil
 
-	for i, p := range a.paths {
-		item := systray.AddMenuItemCheckbox(a.displayDir(p), "", i == 0)
-		if i == 0 {
-			item.Check()
-		}
+	for _, p := range a.paths {
+		item := systray.AddMenuItem(a.displayDir(p), "")
+		item.Disable()
 		a.mPaths = append(a.mPaths, item)
 	}
 
 	a.mAddDir = systray.AddMenuItem("Add Directory...", "Add titles directory")
 	a.mRemoveDir = systray.AddMenuItem("Remove All Directories", "Clear directory list")
+
+	if a.started {
+		a.mAddDir.Disable()
+		a.mRemoveDir.Disable()
+	}
 
 	systray.AddSeparator()
 	a.mQuit = systray.AddMenuItem("Quit", "Exit dbibackend")
@@ -200,6 +203,7 @@ func (a *App) startServer() {
 	a.mToggle.SetTitle("Stop")
 	a.mStatus.SetTitle("Status: Waiting for Switch...")
 	systray.SetIcon(iconWaiting)
+	a.rebuildDynamicMenu()
 
 	go a.connectLoop()
 	a.logger.Info("server started")
@@ -212,12 +216,16 @@ func (a *App) stopServer() {
 		return
 	}
 	a.started = false
+	if a.srv != nil {
+		a.srv.Stop()
+	}
 	close(a.stopSrv)
 	a.mu.Unlock()
 
 	a.mToggle.SetTitle("Start")
 	a.mStatus.SetTitle("Status: Stopped")
 	systray.SetIcon(iconDisconnected)
+	a.rebuildDynamicMenu()
 	a.logger.Info("server stopped")
 }
 
@@ -266,6 +274,10 @@ func (a *App) connectLoop() {
 		a.mu.Unlock()
 
 		srv := server.NewMulti(usb, paths, a.logger)
+		a.mu.Lock()
+		a.srv = srv
+		a.mu.Unlock()
+
 		if err := srv.Run(); err != nil {
 			a.logger.Info("session ended", "err", err)
 		}
@@ -273,6 +285,7 @@ func (a *App) connectLoop() {
 
 		a.mu.Lock()
 		a.running = false
+		a.srv = nil
 		a.mu.Unlock()
 
 		a.mStatus.SetTitle("Status: Waiting for Switch...")

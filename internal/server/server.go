@@ -30,6 +30,7 @@ type Server struct {
 	paths   []string
 	cache   map[string]string
 	logger  *slog.Logger
+	stop    chan struct{}
 }
 
 func New(usb *protocol.USBContext, workDir string, logger *slog.Logger) *Server {
@@ -39,6 +40,7 @@ func New(usb *protocol.USBContext, workDir string, logger *slog.Logger) *Server 
 		paths:   []string{workDir},
 		cache:   make(map[string]string),
 		logger:  logger,
+		stop:    make(chan struct{}),
 	}
 }
 
@@ -53,7 +55,12 @@ func NewMulti(usb *protocol.USBContext, paths []string, logger *slog.Logger) *Se
 		paths:   paths,
 		cache:   make(map[string]string),
 		logger:  logger,
+		stop:    make(chan struct{}),
 	}
+}
+
+func (s *Server) Stop() {
+	close(s.stop)
 }
 
 func (s *Server) reader() io.Reader {
@@ -63,9 +70,39 @@ func (s *Server) reader() io.Reader {
 func (s *Server) Run() error {
 	s.logger.Info("entering command loop")
 	for {
+		select {
+		case <-s.stop:
+			s.logger.Info("stop requested, sending exit")
+			return s.handleExit()
+		default:
+		}
+
 		headerBuf := make([]byte, 16)
-		if _, err := io.ReadFull(s.reader(), headerBuf); err != nil {
-			return fmt.Errorf("read header: %w", err)
+
+		type readResult struct {
+			n   int
+			err error
+		}
+		ch := make(chan readResult, 1)
+		go func() {
+			n, err := io.ReadFull(s.reader(), headerBuf)
+			ch <- readResult{n, err}
+		}()
+
+		var res readResult
+		select {
+		case <-s.stop:
+			s.logger.Info("stop requested, sending exit")
+			resp, _ := protocol.NewHeader(protocol.TypeResponse, protocol.CmdExit, 0).Marshal()
+			s.usb.Write(resp)
+			s.usb.Close()
+			res = <-ch
+			return fmt.Errorf("stopped")
+		case res = <-ch:
+		}
+
+		if res.err != nil {
+			return fmt.Errorf("read header: %w", res.err)
 		}
 
 		header, err := protocol.ReadHeader(bytes.NewReader(headerBuf))

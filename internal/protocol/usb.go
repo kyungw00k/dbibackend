@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/google/gousb"
 )
@@ -12,12 +13,14 @@ const (
 )
 
 type USBContext struct {
-	ctx   *gousb.Context
-	dev   *gousb.Device
-	cfg   *gousb.Config
-	iface *gousb.Interface
-	out   *gousb.OutEndpoint
-	in    *gousb.InEndpoint
+	ctx    *gousb.Context
+	dev    *gousb.Device
+	cfg    *gousb.Config
+	iface  *gousb.Interface
+	out    *gousb.OutEndpoint
+	in     *gousb.InEndpoint
+	closed bool
+	mu     sync.Mutex
 }
 
 func ConnectUSB() (usb *USBContext, err error) {
@@ -107,9 +110,21 @@ func (u *USBContext) Write(buf []byte) (int, error) {
 	return u.out.Write(buf)
 }
 
+func (u *USBContext) SendExit() {
+	resp, _ := NewHeader(TypeResponse, CmdExit, 0).Marshal()
+	u.Write(resp)
+}
+
 func (u *USBContext) Close() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.closed {
+		return nil
+	}
+	u.closed = true
 	u.iface.Close()
 	u.cfg.Close()
+	u.dev.Reset()
 	u.dev.Close()
 	u.ctx.Close()
 	return nil
