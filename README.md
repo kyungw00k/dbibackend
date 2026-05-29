@@ -4,6 +4,8 @@ PC-side server for installing games into Nintendo Switch via USB (DBI0 protocol)
 
 Fork of [lunixoid/dbibackend](https://github.com/lunixoid/dbibackend), rewritten in Go.
 
+![Screenshot](docs/screenshot.png)
+
 ## Features
 
 - System tray menu bar app (default) with start/stop control
@@ -49,8 +51,6 @@ The app lives in your system tray. Click the DBI icon to:
 3. **Stop** — disconnect and stop the server
 4. On Switch, open DBI → Install title from USB
 5. Select and install titles from all configured directories
-
-![Screenshot](docs/screenshot.png)
 
 ### CLI mode
 

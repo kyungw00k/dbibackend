@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"fyne.io/systray"
+	"github.com/kyungw00k/dbibackend/internal/autostart"
 	"github.com/kyungw00k/dbibackend/internal/server"
 )
 
@@ -53,7 +54,9 @@ type App struct {
 	mPaths     []*systray.MenuItem
 	mAddDir    *systray.MenuItem
 	mRemoveDir *systray.MenuItem
+	mAutoStart *systray.MenuItem
 	mQuit      *systray.MenuItem
+	autoStart  *autostart.Manager
 	srv        *server.Server
 }
 
@@ -74,10 +77,11 @@ func NewApp(initialDir string, logger *slog.Logger) *App {
 	}
 
 	return &App{
-		logger:  logger,
-		paths:   paths,
-		stop:    make(chan struct{}),
-		stopSrv: make(chan struct{}),
+		logger:    logger,
+		paths:     paths,
+		stop:      make(chan struct{}),
+		stopSrv:   make(chan struct{}),
+		autoStart: autostart.New(),
 	}
 }
 
@@ -94,6 +98,8 @@ func (a *App) onReady() {
 	a.mStatus.Disable()
 
 	a.mToggle = systray.AddMenuItem("Start", "Start waiting for Switch")
+
+	a.mAutoStart = systray.AddMenuItemCheckbox("Launch at Login", "Start automatically on login", a.autoStart.IsEnabled())
 
 	systray.AddSeparator()
 	a.rebuildDynamicMenu()
@@ -180,6 +186,23 @@ func (a *App) handleEvents() {
 			a.rebuildDynamicMenu()
 			a.mu.Unlock()
 			a.logger.Info("all directories removed")
+
+		case <-a.mAutoStart.ClickedCh:
+			if a.autoStart.IsEnabled() {
+				if err := a.autoStart.Disable(); err != nil {
+					a.logger.Error("disable autostart", "err", err)
+					continue
+				}
+				a.mAutoStart.Uncheck()
+				a.logger.Info("autostart disabled")
+			} else {
+				if err := a.autoStart.Enable(); err != nil {
+					a.logger.Error("enable autostart", "err", err)
+					continue
+				}
+				a.mAutoStart.Check()
+				a.logger.Info("autostart enabled")
+			}
 
 		case <-a.mQuit.ClickedCh:
 			if a.started {
