@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/kyungw00k/dbibackend/internal/menubar"
@@ -58,7 +61,11 @@ var rootCmd = &cobra.Command{
 		defer usb.Close()
 
 		srv := server.New(usb, titlesDir, logger)
-		return srv.Run()
+
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		return srv.RunWithContext(ctx)
 	},
 }
 

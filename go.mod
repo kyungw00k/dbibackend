@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	fyne.io/systray v1.12.1
-	github.com/google/gousb v1.1.0
+	github.com/ebitengine/purego v0.10.1
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/sys v0.15.0
 	golang.org/x/text v0.37.0

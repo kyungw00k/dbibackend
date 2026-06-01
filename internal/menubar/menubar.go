@@ -1,6 +1,7 @@
 package menubar
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -108,6 +109,16 @@ func (a *App) onReady() {
 }
 
 func (a *App) onExit() {
+	a.mu.Lock()
+	if a.srv != nil {
+		a.srv.Stop()
+	}
+	select {
+	case <-a.stopSrv:
+	default:
+		close(a.stopSrv)
+	}
+	a.mu.Unlock()
 	close(a.stop)
 }
 
@@ -270,8 +281,18 @@ func (a *App) connectLoop() {
 
 		a.logger.Info("waiting for switch", "paths", paths)
 
-		usb, err := server.WaitForSwitch(a.logger)
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			select {
+			case <-a.stopSrv:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+
+		usb, err := server.WaitForSwitchCtx(ctx, a.logger)
 		if err != nil {
+			cancel()
 			select {
 			case <-a.stopSrv:
 				return

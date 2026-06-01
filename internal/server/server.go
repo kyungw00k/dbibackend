@@ -2,7 +2,9 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,7 +23,13 @@ type usbReader struct {
 }
 
 func (r usbReader) Read(p []byte) (int, error) {
-	return r.usb.Read(p)
+	for {
+		n, err := r.usb.Read(p)
+		if errors.Is(err, protocol.ErrTimeout) {
+			continue
+		}
+		return n, err
+	}
 }
 
 type Server struct {
@@ -63,6 +71,14 @@ func (s *Server) Stop() {
 	close(s.stop)
 }
 
+func (s *Server) RunWithContext(ctx context.Context) error {
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return s.Run()
+}
+
 func (s *Server) reader() io.Reader {
 	return usbReader{usb: s.usb}
 }
@@ -92,11 +108,11 @@ func (s *Server) Run() error {
 		var res readResult
 		select {
 		case <-s.stop:
-			s.logger.Info("stop requested, sending exit")
-			resp, _ := protocol.NewHeader(protocol.TypeResponse, protocol.CmdExit, 0).Marshal()
-			s.usb.Write(resp)
+			s.logger.Info("stop requested, shutting down")
+			// Close USB directly — fnResetDevice causes the Switch to detect
+			// disconnect. Do NOT try to Write an exit command first: Write
+			// uses timeout=0 and will block if the Switch isn't actively reading.
 			s.usb.Close()
-			res = <-ch
 			return fmt.Errorf("stopped")
 		case res = <-ch:
 		}
@@ -243,12 +259,28 @@ func (s *Server) handleFileRange(dataSize uint32) error {
 }
 
 func WaitForSwitch(logger *slog.Logger) (*protocol.USBContext, error) {
+	return WaitForSwitchCtx(context.Background(), logger)
+}
+
+func WaitForSwitchCtx(ctx context.Context, logger *slog.Logger) (*protocol.USBContext, error) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		usb, err := protocol.ConnectUSB()
 		if err == nil {
 			return usb, nil
 		}
+		logger.Debug("waiting for switch", "err", err)
 		logger.Info("waiting for switch")
-		time.Sleep(1 * time.Second)
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(1 * time.Second):
+		}
 	}
 }
