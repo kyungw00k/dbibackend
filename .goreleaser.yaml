@@ -8,21 +8,54 @@ before:
     - go test ./...
 
 builds:
-  - main: ./cmd/dbibackend
+  - id: darwin
+    main: ./cmd/dbibackend
     binary: dbibackend
     env:
       - CGO_ENABLED=1
-    ldflags:
-      - -s -w
-      - -X github.com/kyungw00k/dbibackend/cmd.Version={{.Version}}
     goos:
       - darwin
     goarch:
       - arm64
+      - amd64
+    ldflags:
+      - -s -w
+      - -X github.com/kyungw00k/dbibackend/cmd.Version={{.Version}}
+
+  - id: linux
+    main: ./cmd/dbibackend
+    binary: dbibackend
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/kyungw00k/dbibackend/cmd.Version={{.Version}}
+
+  - id: windows
+    main: ./cmd/dbibackend
+    binary: dbibackend
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/kyungw00k/dbibackend/cmd.Version={{.Version}}
 
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
 
 checksum:
   name_template: "checksums.txt"
