@@ -3,16 +3,19 @@ package menubar
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"fyne.io/systray"
 	"github.com/kyungw00k/dbibackend/internal/autostart"
 	"github.com/kyungw00k/dbibackend/internal/server"
+	"github.com/kyungw00k/dbibackend/internal/update"
 )
 
 type config struct {
@@ -41,6 +44,14 @@ func (a *App) saveConfig() {
 	os.WriteFile(configPath(), data, 0644)
 }
 
+type updateState int
+
+const (
+	updateIdle      updateState = iota
+	updateAvailable              // new version info cached, ready to download
+	updateReady                  // downloaded, ready to restart
+)
+
 type App struct {
 	logger  *slog.Logger
 	paths   []string
@@ -56,12 +67,19 @@ type App struct {
 	mAddDir    *systray.MenuItem
 	mRemoveDir *systray.MenuItem
 	mAutoStart *systray.MenuItem
+	mUpdate    *systray.MenuItem
 	mQuit      *systray.MenuItem
 	autoStart  *autostart.Manager
 	srv        *server.Server
+
+	version       string
+	updater       *update.Updater
+	updateState   updateState
+	pendingRelease *update.Release
+	pendingArchive string
 }
 
-func NewApp(initialDir string, logger *slog.Logger) *App {
+func NewApp(initialDir string, version string, logger *slog.Logger) *App {
 	cfg := loadConfig()
 	paths := cfg.Paths
 	if initialDir != "" {
@@ -83,6 +101,8 @@ func NewApp(initialDir string, logger *slog.Logger) *App {
 		stop:      make(chan struct{}),
 		stopSrv:   make(chan struct{}),
 		autoStart: autostart.New(),
+		version:   version,
+		updater:   update.NewUpdater(version, logger),
 	}
 }
 
@@ -101,6 +121,8 @@ func (a *App) onReady() {
 	a.mToggle = systray.AddMenuItem("Start", "Start waiting for Switch")
 
 	a.mAutoStart = systray.AddMenuItemCheckbox("Launch at Login", "Start automatically on login", a.autoStart.IsEnabled())
+
+	a.mUpdate = systray.AddMenuItem(fmt.Sprintf("Check for Updates... (v%s)", a.version), "Check for new versions")
 
 	systray.AddSeparator()
 	a.rebuildDynamicMenu()
@@ -215,6 +237,20 @@ func (a *App) handleEvents() {
 				a.logger.Info("autostart enabled")
 			}
 
+		case <-a.mUpdate.ClickedCh:
+			a.mu.Lock()
+			state := a.updateState
+			a.mu.Unlock()
+
+			switch state {
+			case updateIdle:
+				go a.checkForUpdate()
+			case updateAvailable:
+				go a.downloadUpdate()
+			case updateReady:
+				a.restartWithUpdate()
+			}
+
 		case <-a.mQuit.ClickedCh:
 			if a.started {
 				a.stopServer()
@@ -226,6 +262,96 @@ func (a *App) handleEvents() {
 			return
 		}
 	}
+}
+
+func (a *App) resetUpdateMenu() {
+	a.mu.Lock()
+	a.updateState = updateIdle
+	a.pendingRelease = nil
+	a.pendingArchive = ""
+	a.mu.Unlock()
+	a.mUpdate.SetTitle(fmt.Sprintf("Check for Updates... (v%s)", a.version))
+	a.mUpdate.Enable()
+}
+
+func (a *App) checkForUpdate() {
+	a.mUpdate.SetTitle("Checking for updates...")
+	a.mUpdate.Disable()
+
+	release, available, err := a.updater.Check()
+	if err != nil {
+		a.mUpdate.SetTitle(fmt.Sprintf("Update check failed: %s", err))
+		a.mUpdate.Enable()
+		time.AfterFunc(5*time.Second, a.resetUpdateMenu)
+		return
+	}
+
+	if !available {
+		a.mUpdate.SetTitle(fmt.Sprintf("Up to date (v%s)", a.version))
+		a.mUpdate.Enable()
+		return
+	}
+
+	a.mu.Lock()
+	a.updateState = updateAvailable
+	a.pendingRelease = release
+	a.mu.Unlock()
+
+	tagName := strings.TrimPrefix(release.TagName, "v")
+	a.mUpdate.SetTitle(fmt.Sprintf("Update available: v%s → v%s", a.version, tagName))
+	a.mUpdate.Enable()
+}
+
+func (a *App) downloadUpdate() {
+	a.mu.Lock()
+	release := a.pendingRelease
+	a.mu.Unlock()
+
+	if release == nil {
+		a.resetUpdateMenu()
+		return
+	}
+
+	tagName := strings.TrimPrefix(release.TagName, "v")
+	a.mUpdate.SetTitle(fmt.Sprintf("Downloading v%s...", tagName))
+	a.mUpdate.Disable()
+
+	archivePath, err := a.updater.Download(release)
+	if err != nil {
+		a.mUpdate.SetTitle(fmt.Sprintf("Download failed: %s", err))
+		a.mUpdate.Enable()
+		time.AfterFunc(5*time.Second, a.resetUpdateMenu)
+		return
+	}
+
+	a.mu.Lock()
+	a.updateState = updateReady
+	a.pendingArchive = archivePath
+	a.mu.Unlock()
+
+	a.mUpdate.SetTitle(fmt.Sprintf("Restart to update to v%s", tagName))
+	a.mUpdate.Enable()
+}
+
+func (a *App) restartWithUpdate() {
+	a.mUpdate.SetTitle("Updating...")
+	a.mUpdate.Disable()
+
+	if err := a.updater.Apply(a.pendingArchive); err != nil {
+		a.mUpdate.SetTitle(fmt.Sprintf("Update failed: %s", err))
+		a.mUpdate.Enable()
+		time.AfterFunc(5*time.Second, a.resetUpdateMenu)
+		return
+	}
+
+	if err := update.Restart(); err != nil {
+		a.logger.Error("restart failed", "err", err)
+		a.mUpdate.SetTitle("Restart failed — please restart manually")
+		a.mUpdate.Enable()
+		return
+	}
+
+	systray.Quit()
 }
 
 func (a *App) startServer() {

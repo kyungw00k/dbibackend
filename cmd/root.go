@@ -44,7 +44,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if !cliMode {
-			app := menubar.NewApp(titlesDir, logger)
+			app := menubar.NewApp(titlesDir, Version, logger)
 			app.Run()
 			return nil
 		}
