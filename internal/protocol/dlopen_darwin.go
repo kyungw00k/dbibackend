@@ -7,6 +7,14 @@ import (
 )
 
 func dlopenLibusb() uintptr {
+	// 1. Embedded library (extracted to cache)
+	if path, err := extractEmbeddedLibusb(); err == nil {
+		if h, err := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_GLOBAL); err == nil {
+			return h
+		}
+	}
+
+	// 2. System path fallback
 	candidates := []string{
 		"/opt/homebrew/lib/libusb-1.0.dylib",
 		"/usr/local/lib/libusb-1.0.dylib",
