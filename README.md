@@ -19,7 +19,8 @@ Fork of [lunixoid/dbibackend](https://github.com/lunixoid/dbibackend), rewritten
 ## Requirements
 
 Host:
-- [libusb](https://libusb.info/)
+- macOS / Windows — no additional dependencies (libusb is embedded)
+- Linux — [libusb](https://libusb.info/) (`sudo apt install libusb-1.0-0-dev` or equivalent)
 
 Nintendo Switch:
 - [DBI](https://github.com/rashevskyv/dbi) v202+
