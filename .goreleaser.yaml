@@ -76,6 +76,15 @@ brews:
     test: |
       assert_match "dbibackend version", shell_output("#{bin}/dbibackend --version")
 
+scoops:
+  - repository:
+      owner: kyungw00k
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: "https://github.com/kyungw00k/dbibackend"
+    description: "Install local titles into Nintendo Switch via USB"
+    license: MIT
+
 release:
   github:
     owner: kyungw00k

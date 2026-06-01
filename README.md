@@ -33,6 +33,13 @@ Nintendo Switch:
 brew install kyungw00k/tap/dbibackend
 ```
 
+### Scoop (Windows)
+
+```bash
+scoop bucket add kyungw00k https://github.com/kyungw00k/scoop-bucket
+scoop install dbibackend
+```
+
 ### Download
 
 Download the latest binary from [Releases](https://github.com/kyungw00k/dbibackend/releases).
