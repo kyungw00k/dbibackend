@@ -21,8 +21,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install libusb
-        run: brew install libusb
+      - name: Prepare libusb binaries
+        run: bash scripts/prepare-libusb.sh
 
       - uses: go-semantic-release/action@v1
         id: semrel

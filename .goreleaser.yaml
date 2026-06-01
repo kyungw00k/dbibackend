@@ -71,8 +71,6 @@ brews:
     homepage: "https://github.com/kyungw00k/dbibackend"
     description: "Install local titles into Nintendo Switch via USB"
     license: "MIT"
-    dependencies:
-      - name: libusb
     install: |
       bin.install "dbibackend"
     test: |

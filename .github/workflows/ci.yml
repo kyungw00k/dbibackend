@@ -47,9 +47,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install libusb (macOS)
-        if: runner.os == 'macOS'
-        run: brew install libusb
+      - name: Prepare libusb binaries
+        run: bash scripts/prepare-libusb.sh
 
       - name: Build
         env:
@@ -67,8 +66,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install libusb
-        run: brew install libusb
+      - name: Prepare libusb binaries
+        run: bash scripts/prepare-libusb.sh
 
       - name: Test
         run: go test ./...
