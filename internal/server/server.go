@@ -175,6 +175,9 @@ func (s *Server) handleList() error {
 			}
 			if extensions[strings.ToLower(filepath.Ext(path))] {
 				displayName := norm.NFC.String(d.Name())
+				if _, dup := s.cache[displayName]; dup {
+					return nil // same title already listed from another path
+				}
 				s.cache[displayName] = path
 				names = append(names, displayName)
 			}
@@ -195,7 +198,7 @@ func (s *Server) handleList() error {
 }
 
 func (s *Server) handleFileRange(dataSize uint32) error {
-	s.logger.Info("file range")
+	s.logger.Debug("file range")
 
 	ack, _ := protocol.NewHeader(protocol.TypeAck, protocol.CmdFileRange, dataSize).Marshal()
 	s.usb.Write(ack)
@@ -214,7 +217,7 @@ func (s *Server) handleFileRange(dataSize uint32) error {
 		nspName = resolved
 	}
 
-	s.logger.Info("range info",
+	s.logger.Debug("range info",
 		"size", rangeSize,
 		"offset", rangeOffset,
 		"name", nspName,
@@ -263,6 +266,7 @@ func WaitForSwitch(logger *slog.Logger) (*protocol.USBContext, error) {
 }
 
 func WaitForSwitchCtx(ctx context.Context, logger *slog.Logger) (*protocol.USBContext, error) {
+	loggedWaiting := false
 	for {
 		select {
 		case <-ctx.Done():
@@ -274,8 +278,11 @@ func WaitForSwitchCtx(ctx context.Context, logger *slog.Logger) (*protocol.USBCo
 		if err == nil {
 			return usb, nil
 		}
+		if !loggedWaiting {
+			logger.Info("waiting for switch")
+			loggedWaiting = true
+		}
 		logger.Debug("waiting for switch", "err", err)
-		logger.Info("waiting for switch")
 
 		select {
 		case <-ctx.Done():

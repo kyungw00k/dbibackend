@@ -44,6 +44,32 @@ func (a *App) saveConfig() {
 	os.WriteFile(configPath(), data, 0644)
 }
 
+// normalizePaths cleans each stored path and drops duplicates or
+// parent/child overlaps, so "…/switch" and "…/switch/" collapse to one entry.
+func normalizePaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		out = appendUniquePath(out, p)
+	}
+	return out
+}
+
+// appendUniquePath appends dir unless it duplicates or overlaps an existing
+// entry. Overlap means one path is a parent directory of the other, which
+// would make WalkDir list the same files twice on the Switch.
+func appendUniquePath(paths []string, dir string) []string {
+	dir = filepath.Clean(dir)
+	for _, p := range paths {
+		cp := filepath.Clean(p)
+		if cp == dir ||
+			strings.HasPrefix(cp, dir+string(filepath.Separator)) ||
+			strings.HasPrefix(dir, cp+string(filepath.Separator)) {
+			return paths
+		}
+	}
+	return append(paths, dir)
+}
+
 type updateState int
 
 const (
@@ -81,18 +107,9 @@ type App struct {
 
 func NewApp(initialDir string, version string, logger *slog.Logger) *App {
 	cfg := loadConfig()
-	paths := cfg.Paths
+	paths := normalizePaths(cfg.Paths)
 	if initialDir != "" {
-		found := false
-		for _, p := range paths {
-			if p == initialDir {
-				found = true
-				break
-			}
-		}
-		if !found {
-			paths = append(paths, initialDir)
-		}
+		paths = appendUniquePath(paths, initialDir)
 	}
 
 	return &App{
@@ -200,13 +217,13 @@ func (a *App) handleEvents() {
 				continue
 			}
 			a.mu.Lock()
-			for _, p := range a.paths {
-				if p == dir {
-					a.mu.Unlock()
-					continue
-				}
+			next := appendUniquePath(a.paths, dir)
+			if len(next) == len(a.paths) {
+				a.mu.Unlock()
+				a.logger.Warn("directory already listed or overlaps an existing one", "dir", dir)
+				continue
 			}
-			a.paths = append(a.paths, dir)
+			a.paths = next
 			a.saveConfig()
 			a.rebuildDynamicMenu()
 			a.mu.Unlock()
