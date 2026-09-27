@@ -44,6 +44,15 @@ brew install --cask kyungw00k/tap/dbibackend
 Installs **DBI Backend.app** into `/Applications` — a regular Mac app with
 Launch-at-Login support. The formula above installs the bare CLI binary instead.
 
+> **First launch may be blocked by macOS** ("cannot check for malicious
+> software") until the app is notarized. Clear it once with:
+>
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/dbibackend.app
+> ```
+>
+> or use System Settings → Privacy & Security → **Open Anyway**.
+
 ### Scoop (Windows)
 
 ```bash
