@@ -35,25 +35,43 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
 
+      # DMG/cask steps deliberately do not require the semantic-release step
+      # to succeed: a failed channel hook (e.g. an expired scoop token) must
+      # not block macOS app distribution. The version is derived from the
+      # latest tag and the bundle is built from that tag.
       - name: Build macOS app bundle & DMG
-        if: steps.semrel.outputs.version != ''
-        run: bash scripts/build-macos-app.sh "${{ steps.semrel.outputs.version }}"
-
-      - name: Upload DMG to release
-        if: steps.semrel.outputs.version != ''
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "v${{ steps.semrel.outputs.version }}" \
-            "dist/dbibackend_${{ steps.semrel.outputs.version }}_macos_universal.dmg" --clobber
+          VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
+          [ -n "$VERSION" ] || { echo "no tags; skipping"; exit 0; }
+          if gh release view "v${VERSION}" --repo "${GITHUB_REPOSITORY}" --json assets --jq '.assets[].name' 2>/dev/null | grep -q '_macos_universal.dmg'; then
+            echo "v${VERSION} already has a DMG; skipping"
+            exit 0
+          fi
+          git checkout -q "v${VERSION}"
+          bash scripts/build-macos-app.sh "$VERSION"
+          echo "DMG_VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Upload DMG to release
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -n "${DMG_VERSION:-}" ] || exit 0
+          gh release upload "v${DMG_VERSION}" \
+            "dist/dbibackend_${DMG_VERSION}_macos_universal.dmg" \
+            --repo "${GITHUB_REPOSITORY}" --clobber
 
       - name: Update brew cask
-        if: steps.semrel.outputs.version != ''
+        if: ${{ !cancelled() }}
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          bash scripts/update-cask.sh "${{ steps.semrel.outputs.version }}" \
-            "dist/dbibackend_${{ steps.semrel.outputs.version }}_macos_universal.dmg"
+          [ -n "${DMG_VERSION:-}" ] || exit 0
+          bash scripts/update-cask.sh "${DMG_VERSION}" \
+            "dist/dbibackend_${DMG_VERSION}_macos_universal.dmg"
 
       - name: Summary
         if: steps.semrel.outputs.version != ''
