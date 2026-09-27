@@ -35,6 +35,26 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
 
+      - name: Build macOS app bundle & DMG
+        if: steps.semrel.outputs.version != ''
+        run: bash scripts/build-macos-app.sh "${{ steps.semrel.outputs.version }}"
+
+      - name: Upload DMG to release
+        if: steps.semrel.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "v${{ steps.semrel.outputs.version }}" \
+            "dist/dbibackend_${{ steps.semrel.outputs.version }}_macos_universal.dmg" --clobber
+
+      - name: Update brew cask
+        if: steps.semrel.outputs.version != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          bash scripts/update-cask.sh "${{ steps.semrel.outputs.version }}" \
+            "dist/dbibackend_${{ steps.semrel.outputs.version }}_macos_universal.dmg"
+
       - name: Summary
         if: steps.semrel.outputs.version != ''
         run: |

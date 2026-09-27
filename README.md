@@ -35,6 +35,15 @@ brew install kyungw00k/tap/dbibackend
 
 > Linux also needs libusb: `sudo apt install libusb-1.0-0-dev` (or equivalent).
 
+### Homebrew cask (macOS app)
+
+```bash
+brew install --cask kyungw00k/tap/dbibackend
+```
+
+Installs **DBI Backend.app** into `/Applications` — a regular Mac app with
+Launch-at-Login support. The formula above installs the bare CLI binary instead.
+
 ### Scoop (Windows)
 
 ```bash
