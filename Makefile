@@ -2,7 +2,7 @@ MODULE := github.com/kyungw00k/dbibackend
 BINARY := dbibackend
 BUILD_DIR := dist
 
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev")
 LDFLAGS := -ldflags "-s -w -X $(MODULE)/cmd.Version=$(VERSION)"
 
 .PHONY: build install clean run run-cli test lint snapshot

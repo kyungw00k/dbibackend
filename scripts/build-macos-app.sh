@@ -11,7 +11,9 @@
 #   NOTARY_KEY_PATH / NOTARY_KEY_ID / NOTARY_ISSUER_ID   notarytool credentials
 set -euo pipefail
 
-echo "==> Building universal binary (v${VERSION#v})"
+VERSION="${1:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
+VERSION="${VERSION#v}"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 

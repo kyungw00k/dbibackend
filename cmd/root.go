@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:     "dbibackend [titles_dir]",
 	Short:   "Install local titles into Nintendo Switch via USB",
-	Version: Version,
+	Version: strings.TrimPrefix(Version, "v"),
 	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		level := slog.LevelInfo
@@ -44,7 +45,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if !cliMode {
-			app := menubar.NewApp(titlesDir, Version, logger)
+		app := menubar.NewApp(titlesDir, strings.TrimPrefix(Version, "v"), logger)
 			app.Run()
 			return nil
 		}

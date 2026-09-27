@@ -42,10 +42,10 @@ cd "$TMP/tap"
 git config user.name "kyungw00k"
 git config user.email "kyungw00k@users.noreply.github.com"
 
-if git diff --quiet -- Casks/dbibackend.rb 2>/dev/null && [ -f Casks/dbibackend.rb ]; then
+git add Casks/dbibackend.rb
+if git diff --cached --quiet; then
   echo "cask already up to date (${BASE_VERSION})"
 else
-  git add Casks/dbibackend.rb
   git commit -m "cask: dbibackend ${BASE_VERSION}"
   git push origin HEAD >/dev/null 2>&1
   echo "✓ cask updated: kyungw00k/homebrew-tap Casks/dbibackend.rb @ ${BASE_VERSION} (sha256 ${SHA256:0:12}…)"
