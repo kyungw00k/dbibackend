@@ -27,11 +27,13 @@ Nintendo Switch:
 
 ## Install
 
-### Homebrew (macOS)
+### Homebrew (macOS & Linux)
 
 ```bash
 brew install kyungw00k/tap/dbibackend
 ```
+
+> Linux also needs libusb: `sudo apt install libusb-1.0-0-dev` (or equivalent).
 
 ### Scoop (Windows)
 
@@ -43,6 +45,11 @@ scoop install dbibackend
 ### Download
 
 Download the latest binary from [Releases](https://github.com/kyungw00k/dbibackend/releases).
+
+### After installing
+
+Run `dbibackend` — the app starts and lives in your menu bar / system tray,
+then see [Usage](#usage). No arguments needed.
 
 ## Usage
 
@@ -69,7 +76,8 @@ dbibackend --cli <titles_dir> [--debug]
 ## Build from source
 
 ```bash
-go build -o dbibackend ./cmd/dbibackend
+make build    # dist/dbibackend, version stamped from git tags
+make test     # go test ./...
 ```
 
 ## License
